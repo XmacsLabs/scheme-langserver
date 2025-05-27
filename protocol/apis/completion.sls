@@ -15,6 +15,7 @@
     (scheme-langserver util cartesian-product)
     (scheme-langserver util path) 
     (scheme-langserver util io)
+    (scheme-langserver util dedupe)
 
     (scheme-langserver virtual-file-system index-node)
     (scheme-langserver virtual-file-system document)
@@ -51,14 +52,18 @@
             (symbol->string (annotation-stripped (index-node-datum/annotations target-index-node)))
             ""))]
       [whole-list
-       (if (null? target-index-node)
-           '()
-        (if (equal? "" prefix)
-          (find-available-references-for document target-index-node)
-          (filter 
-            (lambda (candidate-reference) 
-              (string-prefix? prefix (symbol->string (identifier-reference-identifier candidate-reference))))
-            (find-available-references-for document target-index-node))))]
+        (if (null? target-index-node)
+          '()
+          (ordered-dedupe
+            (if (equal? "" prefix)
+              (find-available-references-for document target-index-node)
+              (filter 
+                (lambda (candidate-reference) 
+                  (string-prefix? prefix (symbol->string (identifier-reference-identifier candidate-reference))))
+                (find-available-references-for document target-index-node)))
+            (lambda (a b)
+              (eq? (identifier-reference-identifier a)
+                   (identifier-reference-identifier b)))))]
       [type-inference? (workspace-type-inference? workspace)]
       ; [type-inference? #f]
       )
