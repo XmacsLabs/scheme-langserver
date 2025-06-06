@@ -12,6 +12,7 @@
     (scheme-langserver util association)
     (scheme-langserver util path) 
     (scheme-langserver util io)
+    (scheme-langserver util dedupe) 
 
     (scheme-langserver virtual-file-system index-node)
     (scheme-langserver virtual-file-system document)
@@ -27,7 +28,7 @@
       [document (file-node-document file-node)])
     (refresh-workspace-for workspace file-node)
     (let* ([index-node-list (document-index-node-list document)]
-        [identifiers
+         [identifiers
           (filter 
             (lambda (identifier-reference)
               (equal? document (identifier-reference-document identifier-reference)))
@@ -35,11 +36,23 @@
               (map 
                 index-node-references-import-in-this-node
                 index-node-list)))]
-        [result-vector 
-          (list->vector 
-            (map document-symbol->alist 
-              (map identifier->document-symbol identifiers)))])
-      result-vector)))
+        [deduped-identifiers
+          (dedupe 
+            identifiers
+            (lambda (ref1 ref2)
+              (and 
+                (eq? (identifier-reference-identifier ref1)
+                    (identifier-reference-identifier ref2))
+                (let ([node1 (identifier-reference-index-node ref1)]
+                      [node2 (identifier-reference-index-node ref2)])
+                  (and 
+                    (equal? (index-node-start node1) (index-node-start node2))
+                    (equal? (index-node-end node1) (index-node-end node2)))))))])
+      (let ([result-vector 
+             (list->vector 
+               (map document-symbol->alist 
+                 (map identifier->document-symbol deduped-identifiers)))])
+        result-vector))))
 
 (define (identifier->document-symbol identifier)
   (let* ([document (identifier-reference-document identifier)]
