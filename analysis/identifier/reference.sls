@@ -232,8 +232,16 @@
   (case-lambda
     [(document current-index-node)
       (let* ([local (index-node-references-import-in-this-node current-index-node)]
-          [local-identifiers (map identifier-reference-identifier local)]
-          [exclude (index-node-excluded-references current-index-node)])
+             [local-identifiers (map identifier-reference-identifier local)]
+             [exclude (index-node-excluded-references current-index-node)]
+            [parent-refs
+              (if (null? (index-node-parent current-index-node))
+                  ; remove duplicates in document level using dedupe utility
+                  (dedupe (document-ordered-reference-list document)
+                    (lambda (ref1 ref2)
+                      (eq? (identifier-reference-identifier ref1)
+                          (identifier-reference-identifier ref2))))
+                  (find-available-references-for document (index-node-parent current-index-node)))])
         (filter
           (lambda (reference) (not (member reference exclude)))
           (append 
@@ -241,9 +249,7 @@
             (filter 
               (lambda (reference)
                 (not (member (identifier-reference-identifier reference) local-identifiers)))
-              (if (null? (index-node-parent current-index-node))
-                (document-ordered-reference-list document) 
-                (find-available-references-for document (index-node-parent current-index-node)))))))]
+              parent-refs))))]
     [(document current-index-node identifier) 
       (let ([expression (annotation-stripped (index-node-datum/annotations current-index-node))]
           [export-list (index-node-references-export-to-other-node current-index-node)])
